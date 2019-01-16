@@ -1,0 +1,14 @@
+{
+  "name": "denx-b/bitrix-social-auth",
+  "type": "library",
+  "description": "Bitrix auth social network adapter",
+  "license": "MIT",
+  "require": {
+    "php": ">=7.0.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Dbogdanoff\\": "src/"
+    }
+  }
+}
