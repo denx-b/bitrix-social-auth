@@ -78,7 +78,7 @@ You can of course also manually edit your composer.json file
 
 ## Свои адаптеры
 
-Для создания нового адаптера необходимо создать класс и наследовать его от абстрактного класса \Dbogdanoff\Bitrix\Auth\Adapter\Adapter
+Для создания нового адаптера необходимо создать класс и наследовать его от абстрактного класса [\Dbogdanoff\Bitrix\Auth\Adapter\Adapter](https://github.com/denx-b/bitrix-social-auth/blob/master/src/Bitrix/Auth/Adapter/Adapter.php)
 
 Класс имеет 4 абстрактных метода, которые необходимо реализовать и 3 вспомогательные константы:
 ```php
