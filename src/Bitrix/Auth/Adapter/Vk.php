@@ -65,7 +65,23 @@ class Vk extends Adapter
             throw new \Exception($array['error_description']);
         }
 
-        return $array;
+        if (array_key_exists('expires_in', $array)) {
+            $this->token_expires = $array['expires_in'];
+        }
+
+        return $array ?: [];
+    }
+
+    /**
+     * @return int
+     */
+    protected function getTokenExpires(): int
+    {
+        if ($this->token_expires == 0) {
+            return time() + 3600 * 24 * 365 * 2;
+        }
+
+        return intval(time() + $this->token_expires);
     }
 
     /**
@@ -81,6 +97,7 @@ class Vk extends Adapter
             'fields' => 'bdate,sex,photo_200',
             'v' => self::VERSION
         ]);
+
         $array = json_decode($json, true);
 
         if (array_key_exists('error', $array)) {

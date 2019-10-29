@@ -9,6 +9,7 @@ namespace Dbogdanoff\Bitrix\Auth\Adapter;
  */
 class Google extends Adapter
 {
+    const VERSION = 'v2';
     const NAME = 'Google';
     const ID = "GoogleOAuth"; // EXTERNAL_AUTH_ID
     const LOGIN_PREFIX = "G_";
@@ -23,7 +24,7 @@ class Google extends Adapter
             'client_id' => $this->client_id
         ]);
 
-        return 'https://accounts.google.com/o/oauth2/v2/auth?' . $params;
+        return 'https://accounts.google.com/o/oauth2/' . self::VERSION . '/auth?' . $params;
     }
 
     /**
@@ -59,7 +60,19 @@ class Google extends Adapter
             throw new \Exception($array['error_description'] . ' (' . $array['error'] . ')');
         }
 
-        return $array;
+        if (array_key_exists('expires_in', $array)) {
+            $this->token_expires = intval($array['expires_in']);
+        }
+
+        return $array ?: [];
+    }
+
+    /**
+     * @return int
+     */
+    protected function getTokenExpires(): int
+    {
+        return intval(time() + $this->token_expires);
     }
 
     /**
@@ -69,7 +82,7 @@ class Google extends Adapter
      */
     protected function getUserInfo($tokenResponse): array
     {
-        $json = $this->curl('https://www.googleapis.com/oauth2/v2/userinfo', [
+        $json = $this->curl('https://www.googleapis.com/oauth2/' . self::VERSION . '/userinfo', [
             'access_token' => $tokenResponse['access_token'],
             'fields' => 'id,link,given_name,family_name,gender,picture,email'
         ]);
@@ -80,7 +93,7 @@ class Google extends Adapter
             throw new \Exception($array['error']['message']);
         }
 
-        return $array;
+        return $array ?: [];
     }
 
     /**

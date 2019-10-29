@@ -56,8 +56,7 @@ abstract class Adapter
     /** @var array */
     protected $params = [];
 
-    /** @var array */
-    protected $baseState = [];
+    protected $token_expires;
 
     /** @var \Bitrix\Main\Context */
     protected $context;
@@ -72,7 +71,7 @@ abstract class Adapter
      *
      * @var string
      */
-    private static $redirectTo = '/';
+    protected static $redirectTo = '/';
 
     /**
      * Должен содержать как минимум client_id и client_secret
@@ -122,6 +121,13 @@ abstract class Adapter
     abstract protected function getToken(): array;
 
     /**
+     * Время жизни токена
+     *
+     * @return int
+     */
+    abstract protected function getTokenExpires(): int;
+
+    /**
      * Запрос на получение информации о пользователе.
      *
      * @param $token
@@ -152,6 +158,7 @@ abstract class Adapter
     public function oauth()
     {
         $tokenResponse = $this->getToken();
+        $tokenExpires = $this->getTokenExpires();
 
         if ($tokenResponse['access_token']) {
             $userInfo = $this->getUserInfo($tokenResponse);
@@ -173,24 +180,34 @@ abstract class Adapter
 
                 $user = new \CUser;
                 if ($user->IsAuthorized()) {
-                    if ($dbResUser->fetch()) {
-                        throw new \Exception('Авторизация данным аккаунтом "' . static::NAME . '"" уже существует.');
+                    if ($row = $dbResUser->fetch()) {
+                        if ($user->GetID() != $row['USER_ID']) {
+                            $this->migration($user->GetID(), $row['USER_ID'], $row['ID']);
+                        } else if ($tokenExpires) {
+                            UserTable::update($row['ID'], ['OATOKEN_EXPIRES' => $tokenExpires]);
+                        }
                     } else {
-                        $arFile = \CFile::MakeFileArray($userFields['PERSONAL_PHOTO']);
-                        $arFile['MODULE_ID'] = 'socialservices';
-                        $file_id = \CFile::SaveFile($arFile, $arFile['MODULE_ID']);
+                        if ($userFields['PERSONAL_PHOTO']) {
+                            $arFile = \CFile::MakeFileArray($userFields['PERSONAL_PHOTO']);
+                            $arFile['MODULE_ID'] = 'socialservices';
+                            $userFields['PERSONAL_PHOTO'] = \CFile::SaveFile($arFile, 'socialservices');
+                        }
 
-                        $this->userAddLink([
-                            'NAME' => $userFields['NAME'],
-                            'LAST_NAME' => $userFields['LAST_NAME'],
-                            'PERSONAL_PHOTO' => $file_id,
-                            'EXTERNAL_AUTH_ID' => static::ID,
-                            'USER_ID' => $user->GetID(),
-                            'CAN_DELETE' => 'Y',
-                            'PERSONAL_WWW' => $userFields['PERSONAL_WWW'],
-                            'SEND_ACTIVITY' => 'Y',
-                            'SITE_ID' => SITE_ID,
-                        ]);
+                        $userFields = $userFields + [
+                                'EXTERNAL_AUTH_ID' => static::ID,
+                                'USER_ID' => $user->GetID(),
+                                'CAN_DELETE' => 'Y',
+                                'SEND_ACTIVITY' => 'Y',
+                                'SITE_ID' => 's1',
+                                'INITIALIZED' => 'N',
+                                'OATOKEN' => $tokenResponse['access_token']
+                            ];
+
+                        if ($tokenExpires) {
+                            $userFields['OATOKEN_EXPIRES'] = $tokenExpires;
+                        }
+
+                        $this->userAddLink($userFields);
                     }
 
                     $state = $this->parseState();
@@ -199,8 +216,11 @@ abstract class Adapter
                     }
                     \AddEventHandler('main', 'OnEpilog', ['\Dbogdanoff\Bitrix\Auth\Adapter\Adapter', 'redirectToStartPage']);
                 } else {
-                    if ($arUser = $dbResUser->fetch()) {
-                        $this->authorize($arUser['USER_ID']);
+                    if ($row = $dbResUser->fetch()) {
+                        if ($tokenExpires) {
+                            UserTable::update($row['ID'], ['OATOKEN_EXPIRES' => $tokenExpires]);
+                        }
+                        $this->authorize($row['USER_ID']);
                     } else {
                         $this->register($userFields);
                     }
@@ -259,6 +279,7 @@ abstract class Adapter
             'PERSONAL_WWW' => $fields['PERSONAL_WWW'],
             'SEND_ACTIVITY' => 'Y',
             'SITE_ID' => SITE_ID,
+            'OATOKEN_EXPIRES' => $this->getTokenExpires()
         ]);
 
         $state = $this->parseState();
@@ -280,6 +301,24 @@ abstract class Adapter
 
         $user = new \CUser;
         return $user->Authorize($user_id, true);
+    }
+
+    /**
+     * @param $user_id
+     * @param $prev_user_id
+     * @param $auth_id
+     * @throws \Exception
+     */
+    protected function migration($user_id, $prev_user_id, $auth_id)
+    {
+        Loader::includeModule('socialservices');
+
+        // деактивирует старый аккаунт
+        $user = new \CUser();
+        $user->Update($prev_user_id, ['ACTIVE' => 'N']);
+
+        // переносит старую авторизационную запись
+        UserTable::update($auth_id, ['USER_ID' => $user_id]);
     }
 
     /**
@@ -347,7 +386,7 @@ abstract class Adapter
     /**
      * @return string
      */
-    private function getAdapterBasename(): string
+    protected function getAdapterBasename(): string
     {
         $className = strtolower(static::class);
 
@@ -379,7 +418,10 @@ abstract class Adapter
     {
         $state['check'] = $this->getCheckString();
         $state['adapter'] = $this->getAdapterBasename();
-        $state['page'] = str_replace('index.php', '', $this->request->getRequestedPage());
+
+        if (!$state['page']) {
+            $state['page'] = str_replace('index.php', '', $this->request->getRequestedPage());
+        }
 
         $arState = [];
         foreach ($state as $key => $value) {
@@ -392,13 +434,25 @@ abstract class Adapter
     /**
      * @return array
      */
-    private function parseState(): array
+    public function parseState(): array
     {
         $arResult = [];
 
         foreach (explode('&', $this->request['state']) as $val) {
             $exp = explode('=', $val);
             $arResult[$exp[0]] = $exp[1];
+        }
+
+        if ($this->request['adapter'] && !$arResult['adapter']) {
+            $arResult['adapter'] = $this->request['adapter'];
+        }
+
+        if ($this->request['page'] && !$arResult['page']) {
+            $arResult['page'] = $this->request['page'];
+        }
+
+        if ($this->request['check'] && !$arResult['check']) {
+            $arResult['check'] = $this->request['check'];
         }
 
         return $arResult;
@@ -421,16 +475,25 @@ abstract class Adapter
     }
 
     /**
+     * @return array
+     */
+    public function getParams(): array
+    {
+        return $this->params;
+    }
+
+    /**
      * Генерирует пароль при регистрации
      *
+     * @param int $length
      * @return string
      */
-    private function randomPassword()
+    public function randomPassword(int $length = 8)
     {
         $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
         $pass = []; //remember to declare $pass as an array
         $alphaLength = strlen($alphabet) - 1; //put the length -1 in cache
-        for ($i = 0; $i < 8; $i++) {
+        for ($i = 0; $i < $length; $i++) {
             $n = rand(0, $alphaLength);
             $pass[] = $alphabet[$n];
         }

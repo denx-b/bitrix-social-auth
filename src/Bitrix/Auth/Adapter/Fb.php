@@ -2,8 +2,6 @@
 
 namespace Dbogdanoff\Bitrix\Auth\Adapter;
 
-use Bitrix\Main\Config\Option;
-
 /**
  * Class Fb
  * @package Bitrix Social Auth
@@ -11,10 +9,15 @@ use Bitrix\Main\Config\Option;
  */
 class Fb extends Adapter
 {
+    const VERSION = 'v3.0';
     const NAME = 'Facebook';
     const ID = "Facebook";
     const LOGIN_PREFIX = "FB_";
 
+    /**
+     * @param array $state
+     * @return string
+     */
     public function getAuthUrl(array $state = []): string
     {
         $params = http_build_query([
@@ -23,7 +26,8 @@ class Fb extends Adapter
             'state' => $this->getState($state)
         ]);
 
-        return 'https://www.facebook.com/v2.8/dialog/oauth?' . $params . '&redirect_uri=' . $this->getServerName();
+        return 'https://www.facebook.com/' . self::VERSION . '/dialog/oauth?' . $params . '&redirect_uri=' .
+            $this->getServerName();
     }
 
     /**
@@ -46,7 +50,7 @@ class Fb extends Adapter
      */
     protected function getToken(): array
     {
-        $json = $this->curl('https://graph.facebook.com/v2.8/oauth/access_token', [
+        $json = $this->curl('https://graph.facebook.com/' . self::VERSION . '/oauth/access_token', [
             'client_id' => $this->client_id,
             'client_secret' => $this->client_secret,
             'redirect_uri' => $this->getServerName(),
@@ -59,7 +63,19 @@ class Fb extends Adapter
             throw new \Exception($array['error']['message']);
         }
 
-        return $array;
+        if (array_key_exists('expires_in', $array)) {
+            $this->token_expires = intval($array['expires_in']);
+        }
+
+        return $array ?: [];
+    }
+
+    /**
+     * @return int
+     */
+    protected function getTokenExpires(): int
+    {
+        return intval(time() + $this->token_expires);
     }
 
     /**
@@ -73,61 +89,28 @@ class Fb extends Adapter
             'access_token' => $tokenResponse['access_token'],
             'fields' => 'id,first_name,last_name,age_range,gender,picture,email'
         ]);
+
         $array = json_decode($json, true);
 
         if (array_key_exists('error', $array)) {
             throw new \Exception($array['error']['error_msg']);
         }
 
-        return $array;
+        return $array ?: [];
     }
 
     /**
      * @param array $userInfo
      * @return array
-     * @throws \Bitrix\Main\ArgumentNullException
-     * @throws \Bitrix\Main\ArgumentOutOfRangeException
      */
     public function getUserFields(array $userInfo): array
     {
-        $picture = $this->getUserBigPicture($userInfo);
         return [
             'NAME' => $userInfo['first_name'],
             'LAST_NAME' => $userInfo['last_name'],
             'EMAIL' => $userInfo['email'],
             'PERSONAL_GENDER' => $userInfo['sex'] == 'female' ? 'F' : 'M',
-            'PERSONAL_PHOTO' => \CFile::MakeFileArray($picture),
-            'PERSONAL_WWW' => 'https://www.facebook.com/profile.php?id=' . $userInfo['id'],
+            'PERSONAL_PHOTO' => \CFile::MakeFileArray($userInfo['picture']['data']['url'])
         ];
-    }
-
-    /**
-     * Для facebook'а требуется дополнительное телодвижение для получение картинки большего размера
-     *
-     * @param $userInfo
-     * @return string
-     * @throws \Bitrix\Main\ArgumentNullException
-     * @throws \Bitrix\Main\ArgumentOutOfRangeException
-     */
-    protected function getUserBigPicture($userInfo): string
-    {
-        $picture = 'https://graph.facebook.com/' . $userInfo['id'] . '/picture?type=large';
-        $doc_root = $this->context->getServer()->getDocumentRoot();
-        $upload_dir = Option::get('main', 'upload_dir', 'upload');
-        \CheckDirPath($doc_root . '/' . $upload_dir . '/tmp/');
-        $upload = $doc_root . '/' . $upload_dir . '/tmp/' . $userInfo['id'] . '.jpg';
-
-        $file_headers = @get_headers($picture);
-        if ($file_headers[0] == 'HTTP/1.1 404 Not Found') {
-            $picture = $userInfo['picture']['data']['url'];
-        } else {
-            if (file_put_contents($upload, file_get_contents($picture))) {
-                $picture = $upload;
-            } else {
-                $picture = $userInfo['picture']['data']['url'];
-            }
-        }
-
-        return $picture;
     }
 }
