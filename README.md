@@ -80,7 +80,7 @@ You can of course also manually edit your composer.json file
 
 Для создания нового адаптера необходимо создать класс и наследовать его от абстрактного класса \Dbogdanoff\Bitrix\Auth\Adapter\Adapter
 
-Класс имеет 4 абстрактных метода, которые необходимо реализовать и 3 вспомогательные константы:
+Класс имеет 5 абстрактных методов, которые необходимо реализовать и 3 вспомогательные константы:
 ```php
 /**
  * Название соц. сети.
@@ -120,6 +120,13 @@ abstract public function getAuthUrl(array $state = []): string;
  * @throws \Exception
  */
 abstract protected function getToken(): array;
+
+/**
+ * Время жизни токена
+ *
+ * @return int
+ */
+abstract protected function getTokenExpires(): int;
 
 /**
  * Запрос на получение информации о пользователе.
