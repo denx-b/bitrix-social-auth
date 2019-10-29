@@ -49,6 +49,25 @@ class Auth
     }
 
     /**
+     * Возвращает json-массив с параметрами адаптеров.
+     *
+     * @return string
+     */
+    public static function getAdaptersJson(): string
+    {
+        $result = [];
+        foreach (self::getAdapters() as $adapter) {
+            $result[] = [
+                'id' => $adapter::ID,
+                'name' => $adapter::NAME,
+                'url' => $adapter->getAuthUrl()
+            ];
+        }
+
+        return json_encode($result);
+    }
+
+    /**
      * Идентификация и вызов адаптера.
      * После разрешения пользователем авторизации на стороне соц. сети
      * пользователь переадресуется обратно на сайт и в параметре state находятся данные,
