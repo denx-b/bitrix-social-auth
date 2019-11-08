@@ -60,6 +60,10 @@ class Google extends Adapter
             throw new \Exception($array['error_description'] . ' (' . $array['error'] . ')');
         }
 
+        if (array_key_exists('access_token', $array)) {
+            $this->token = $array['access_token'];
+        }
+
         if (array_key_exists('expires_in', $array)) {
             $this->token_expires = intval($array['expires_in']);
         }
@@ -107,8 +111,7 @@ class Google extends Adapter
             'LAST_NAME' => $userInfo['family_name'],
             'EMAIL' => $userInfo['email'],
             'PERSONAL_GENDER' => $userInfo['sex'] == 'female' ? 'F' : 'M',
-            'PERSONAL_PHOTO' => \CFile::MakeFileArray($userInfo['picture']),
-            'PERSONAL_WWW' => $userInfo['link'],
+            'PERSONAL_PHOTO' => $this->downloadPictureToTemp($userInfo['picture'])
         ];
     }
 }

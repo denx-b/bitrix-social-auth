@@ -65,6 +65,10 @@ class Vk extends Adapter
             throw new \Exception($array['error_description']);
         }
 
+        if (array_key_exists('access_token', $array)) {
+            $this->token = $array['access_token'];
+        }
+
         if (array_key_exists('expires_in', $array)) {
             $this->token_expires = $array['expires_in'];
         }
@@ -118,7 +122,7 @@ class Vk extends Adapter
             'LAST_NAME' => $userInfo['last_name'],
             'PERSONAL_GENDER' => $userInfo['sex'] == 1 ? 'F' : 'M',
             'PERSONAL_BIRTHDAY' => date('d.m.Y', strtotime($userInfo['bdate'])),
-            'PERSONAL_PHOTO' => \CFile::MakeFileArray($userInfo['photo_200']),
+            'PERSONAL_PHOTO' => $userInfo['photo_200'],
             'PERSONAL_WWW' => 'https://vk.com/id' . $userInfo['id'],
         ];
     }

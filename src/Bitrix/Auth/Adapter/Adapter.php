@@ -56,6 +56,16 @@ abstract class Adapter
     /** @var array */
     protected $params = [];
 
+    /**
+     * @var string
+     */
+    protected $token;
+
+    /**
+     * Значение expires_in или аналочиный ключ, при получении токена
+     *
+     * @var string|int
+     */
     protected $token_expires;
 
     /** @var \Bitrix\Main\Context */
@@ -162,17 +172,11 @@ abstract class Adapter
 
         if ($tokenResponse['access_token']) {
             $userInfo = $this->getUserInfo($tokenResponse);
-            array_walk_recursive($userInfo, function (&$item) {
-                $item = strip_tags($item);
-            });
-
             $email = $tokenResponse['email'] ?: $userInfo['email'];
 
             if ($uid = $userInfo['id']) {
                 $login = static::LOGIN_PREFIX . $uid;
-
                 $dbResUser = $this->userFind(static::ID, $uid);
-
                 $userFields = $this->getUserFields($userInfo);
                 $userFields['EMAIL'] = check_email($email) ? $email : $login . '@' . $this->context->getServer()->getServerName();
                 $userFields['LOGIN'] = $login;
@@ -254,24 +258,30 @@ abstract class Adapter
 
         $user_id = $user->GetID();
 
-        $user->Update($user_id, [
-            'PERSONAL_GENDER' => $fields['PERSONAL_WWW'],
-            'PERSONAL_BIRTHDAY' => $fields['PERSONAL_BIRTHDAY'],
-            'PERSONAL_PHOTO' => $fields['PERSONAL_PHOTO'],
-            'PERSONAL_WWW' => $fields['PERSONAL_WWW']
-        ]);
+        if ($fields['PERSONAL_PHOTO']) {
+            $fields['PERSONAL_PHOTO'] = \CFile::MakeFileArray($fields['PERSONAL_PHOTO']);
+        }
 
-        $arPhoto = UserTable::getList([
+        $user->Update($user_id, $fields);
+
+        $arPhoto = \Bitrix\Main\UserTable::getList([
             'filter' => ['ID' => $user_id],
             'select' => ['PERSONAL_PHOTO']
         ])->fetch();
+
+        $file_id = '';
+        if ($arPhoto['PERSONAL_PHOTO']) {
+            $arFile = \CFile::MakeFileArray($arPhoto['PERSONAL_PHOTO']);
+            $arFile['MODULE_ID'] = 'socialservices';
+            $file_id = \CFile::SaveFile($arFile, 'socialservices');
+        }
 
         $this->userAddLink([
             'LOGIN' => $fields['LOGIN'],
             'NAME' => $fields['NAME'],
             'LAST_NAME' => $fields['LAST_NAME'],
             'EMAIL' => $fields['EMAIL'],
-            'PERSONAL_PHOTO' => $arPhoto['PERSONAL_PHOTO'],
+            'PERSONAL_PHOTO' => $file_id,
             'EXTERNAL_AUTH_ID' => static::ID,
             'USER_ID' => $user_id,
             'XML_ID' => $fields['XML_ID'],
@@ -279,6 +289,7 @@ abstract class Adapter
             'PERSONAL_WWW' => $fields['PERSONAL_WWW'],
             'SEND_ACTIVITY' => 'Y',
             'SITE_ID' => SITE_ID,
+            'OATOKEN' => $this->token,
             'OATOKEN_EXPIRES' => $this->getTokenExpires()
         ]);
 
@@ -498,6 +509,34 @@ abstract class Adapter
             $pass[] = $alphabet[$n];
         }
         return implode($pass); //turn the array into a string
+    }
+
+    /**
+     * @param string $picture
+     * @return string
+     */
+    protected function downloadPictureToTemp(string $picture): string
+    {
+        $temp_file = tempnam(sys_get_temp_dir(), static::ID);
+        file_put_contents($temp_file, file_get_contents($picture));
+
+        $dest = '';
+        if ($mime_type = mime_content_type($temp_file)) {
+            if (strpos($mime_type, 'jpeg') !== false) {
+                $dest = $temp_file . '.jpg';
+            } else if (strpos($mime_type, 'png') !== false) {
+                $dest = $temp_file . '.png';
+            } else if (strpos($mime_type, 'gif') !== false) {
+                $dest = $temp_file . '.gif';
+            }
+            if ($dest) {
+                if (!rename($temp_file, $dest)) {
+                    $dest = '';
+                }
+            }
+        }
+
+        return $dest;
     }
 
     /**

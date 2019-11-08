@@ -55,6 +55,10 @@ class Inst extends Adapter
             throw new \Exception($array['error_description']);
         }
 
+        if (array_key_exists('access_token', $array)) {
+            $this->token = $array['access_token'];
+        }
+
         return $array ?: [];
     }
 
