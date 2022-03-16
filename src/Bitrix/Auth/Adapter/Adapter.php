@@ -249,8 +249,16 @@ abstract class Adapter
         $user = new \CUser;
         $password = $this->randomPassword();
 
-        $result = $user->Register($fields['LOGIN'], $fields['NAME'], $fields['LAST_NAME'], $password, $password,
-            $fields['EMAIL']);
+        \COption::SetOptionString('main', 'captcha_registration', 'N');
+        $result = $user->Register(
+            $fields['LOGIN'],
+            $fields['NAME'],
+            $fields['LAST_NAME'],
+            $password,
+            $password,
+            $fields['EMAIL']
+        );
+        \COption::SetOptionString('main', 'captcha_registration', 'Y');
 
         if ($result['TYPE'] == 'ERROR') {
             throw new \Exception($result['MESSAGE']);
@@ -545,9 +553,10 @@ abstract class Adapter
      * @param $queryUrl
      * @param array $queryData
      * @param bool $post
-     * @return mixed
+     * @param array $header
+     * @return bool|string
      */
-    protected function curl($queryUrl, array $queryData = [], bool $post = false)
+    protected function curl($queryUrl, array $queryData = [], bool $post = false, array $header = [])
     {
         $curl = curl_init();
 
@@ -568,8 +577,13 @@ abstract class Adapter
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_HEADER => false,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_URL => $queryUrl
+            CURLOPT_URL => $queryUrl,
+            CURLOPT_USERAGENT => $this->context->getServer()->getUserAgent()
         ]);
+
+        if (count($header)) {
+            curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
+        }
 
         $result = curl_exec($curl);
         curl_close($curl);
