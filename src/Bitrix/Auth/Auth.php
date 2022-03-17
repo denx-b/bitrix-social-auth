@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Dbogdanoff\Bitrix\Auth;
 
