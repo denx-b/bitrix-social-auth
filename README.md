@@ -18,8 +18,22 @@ try {
         'client_id' => '123456',
         'client_secret' => 'xxxxxxxxxx'
     ]));
+    Auth::addAdapter(new Adapter\Github([
+        'client_id' => '123456',
+        'client_secret' => 'xxxxxxxxxx'
+    ]));
+    Auth::addAdapter(new Adapter\Telegram([
+        'client_id' => 'yourbotname_bot',
+        'client_secret' => 'API Token'
+    ]));
 }
 catch (\Exception $e) {
+    /*
+     * Все мы прекрасно понимаем, что вывод в init.php – плохо, 
+     * но это пример и вы можете вынести весь этот код куда вам удобно, например в компонент
+     * Но я прамо так и использую :) 
+     * Класс .adapter-error у меня position: fixed прилипает к верху экрана
+     */
     echo '<div class="adapter-error">' . $e->getMessage() . '</div>';
 }
 ```
@@ -27,7 +41,10 @@ catch (\Exception $e) {
 Вариант публичной части:
 ```php
 <ul class="auth__list">
-  <?$adapters = \Dbogdanoff\Bitrix\Auth\Auth::getAdapters();?>
+  <?php
+  /** @var \Dbogdanoff\Bitrix\Auth\Adapter\Adapter[] $adapters */
+  $adapters = \Dbogdanoff\Bitrix\Auth\Auth::getAdapters();
+  ?>
   <li class="auth__item">
     <a class="auth__link" href="<?=$adapters['Facebook']->getAuthUrl()?>">
       <svg class="auth__icon" width="20" height="20">
@@ -46,6 +63,13 @@ catch (\Exception $e) {
 </ul>
 ```
 
+### Телеграм особенности
+Авторизация через телеграм реализована посредством виджета, поэтому его использование отличается от других и имеется ряд ограничений, например, нельзя стилизовать как нам хочется.\
+Также не будет полноценно работать метод Telegram::getAuthUrl(), вместо него надо использовать\
+`echo Telegram::getButton(string $selector, string $size = 'large', string $redirect = '/')`,\
+который в качестве первого арумента принимает селектор в DOM куда на js будет вставлен виджет (кнопка) авторизации.\
+Метод Telegram::getButton() возвращает строку подключения виджета и стоить иметь ввиду, что кнопка появится не в месте вызова метода, а в DOM, в указанном в первом аргументе селекторе.
+
 ## Requirements
 
 Bitrix Social Auth requires the following:
@@ -62,16 +86,12 @@ Run the following to use the latest stable version
 ```sh
     composer require denx-b/bitrix-social-auth
 ```
-or if you want the latest master version
-```sh
-    composer require denx-b/bitrix-social-auth:dev-master
-```
 
 You can of course also manually edit your composer.json file
 ```json
 {
     "require": {
-       "denx-b/bitrix-social-auth": "0.*"
+       "denx-b/bitrix-social-auth": "1.5.*"
     }
 }
 ```
