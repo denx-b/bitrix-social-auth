@@ -178,7 +178,7 @@ abstract class Adapter
                 $login = static::LOGIN_PREFIX . $uid;
                 $dbResUser = $this->userFind(static::ID, $uid);
                 $userFields = $this->getUserFields($userInfo);
-                $userFields['EMAIL'] = check_email($email) ? $email : $login . '@' . $this->context->getServer()->getServerName();
+                $userFields['EMAIL'] = check_email($email) ? $email : '';
                 $userFields['LOGIN'] = $login;
                 $userFields['XML_ID'] = $uid;
 
@@ -249,7 +249,21 @@ abstract class Adapter
         $user = new \CUser;
         $password = $this->randomPassword();
 
-        \COption::SetOptionString('main', 'captcha_registration', 'N');
+        $useCaptcha = \COption::GetOptionString('main', 'captcha_registration', 'N');
+        if ($useCaptcha === 'Y') {
+            \COption::SetOptionString('main', 'captcha_registration', 'N');
+        }
+
+        $useConfirmationEmail = \COption::GetOptionString('main', 'new_user_registration_email_confirmation', 'N');
+        if ($useConfirmationEmail === 'Y') {
+            \COption::SetOptionString('main', 'new_user_registration_email_confirmation', 'N');
+        }
+
+        $useEmailRequire = \COption::GetOptionString('main', 'new_user_email_required', 'N');
+        if ($useEmailRequire === 'Y' && !check_email($fields['EMAIL'])) {
+            \COption::SetOptionString('main', 'new_user_email_required', 'N');
+        }
+
         $result = $user->Register(
             $fields['LOGIN'],
             $fields['NAME'],
@@ -258,7 +272,18 @@ abstract class Adapter
             $password,
             $fields['EMAIL']
         );
-        \COption::SetOptionString('main', 'captcha_registration', 'Y');
+
+        if ($useCaptcha === 'Y') {
+            \COption::SetOptionString('main', 'captcha_registration', 'Y');
+        }
+
+        if ($useConfirmationEmail === 'Y') {
+            \COption::SetOptionString('main', 'new_user_registration_email_confirmation', 'Y');
+        }
+
+        if ($useEmailRequire === 'Y' && !check_email($fields['EMAIL'])) {
+            \COption::SetOptionString('main', 'new_user_email_required', 'Y');
+        }
 
         if ($result['TYPE'] == 'ERROR') {
             throw new \Exception($result['MESSAGE']);
