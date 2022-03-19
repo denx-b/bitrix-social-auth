@@ -486,10 +486,19 @@ abstract class Adapter
     {
         $parsed = $this->parseState();
 
-        if ($parsed['check'] == $this->getCheckString() && $parsed['adapter'] == $this->getAdapterBasename()) {
+        if ($parsed['check'] == $this->getCheckString() && $parsed['adapter'] == $this->getAdapterBasename()
+            || $this->specialCheck()) {
             return true;
         }
 
+        return false;
+    }
+
+    /**
+     * @return false
+     */
+    protected function specialCheck(): bool
+    {
         return false;
     }
 
