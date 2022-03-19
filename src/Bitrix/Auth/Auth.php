@@ -50,13 +50,17 @@ class Auth
 
     /**
      * Возвращает json-массив с параметрами адаптеров.
-     *
+     * 
+     * @param array $skip
      * @return string
      */
-    public static function getAdaptersJson(): string
+    public static function getAdaptersJson(array $skip = []): string
     {
         $result = [];
         foreach (self::getAdapters() as $adapter) {
+            if (in_array($adapter::NAME, $skip)) {
+                continue;
+            }
             $result[] = [
                 'id' => $adapter::ID,
                 'name' => $adapter::NAME,
