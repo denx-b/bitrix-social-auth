@@ -9,7 +9,7 @@ namespace Dbogdanoff\Bitrix\Auth\Adapter;
  */
 class Vk extends Adapter
 {
-    const VERSION = '5.73';
+    const VERSION = '5.81';
     const NAME = 'Вконтакте';
     const ID = "VKontakte";
     const LOGIN_PREFIX = "VKuser";
