@@ -26,6 +26,11 @@ try {
         'client_id' => 'yourbotname_bot',
         'client_secret' => 'API Token'
     ]));
+    Auth::addAdapter(new Adapter\Ok([
+        'client_id' => '123456',
+        'client_secret' => 'xxxxxxxxxx',
+        'client_pub_key' => 'yyyyyyyyyy'         
+    ]));
 }
 catch (\Exception $e) {
     /*
