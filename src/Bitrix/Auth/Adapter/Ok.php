@@ -10,9 +10,9 @@ use Exception;
  */
 class Ok extends Adapter
 {
-    const NAME = 'Odnoklassniki';
+    const NAME = 'Одноклассники';
     const ID = "Odnoklassniki";
-    const LOGIN_PREFIX = "OK_";
+    const LOGIN_PREFIX = "OKuser";
 
     /**
      * @param array $state
