@@ -24,7 +24,7 @@ class Ok extends Adapter
             'client_id' => $this->client_id,
             'scope' => $this->getScope(),
             'response_type' => 'code',
-            'state' => 'odnoklassniki',
+            'state' => $this->getState($state),
         ]);
 
         return 'https://connect.ok.ru/oauth/authorize?' . $params . '&redirect_uri=' .
@@ -127,7 +127,7 @@ class Ok extends Adapter
      * @param array $userInfo
      * @return array
      */
-    public function getUserFields(array $userInfo): array
+    protected function getUserFields(array $userInfo): array
     {
         return [
             'NAME' => $userInfo['first_name'],
@@ -139,9 +139,10 @@ class Ok extends Adapter
     }
 
     /**
-     * Получение UID опльзователя.
+     * Получение UID пользователя.
+     * @throws \Exception
      */
-    public function getUserId()
+    protected function getUserId()
     {
         $secret_key = md5($this->token . $this->client_secret);
         $sig = md5(
@@ -163,13 +164,5 @@ class Ok extends Adapter
         }
 
         return $response ?: '';
-    }
-
-    /**
-     * @return bool
-     */
-    protected function specialCheck(): bool
-    {
-        return $this->request->get('state') === 'odnoklassniki';
     }
 }
