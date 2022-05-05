@@ -264,6 +264,16 @@ abstract class Adapter
             \COption::SetOptionString('main', 'new_user_email_required', 'N');
         }
 
+        $useConfirmationPhone = \COption::GetOptionString('main', 'new_user_phone_auth', 'N');
+        if ($useConfirmationPhone === 'Y') {
+            \COption::SetOptionString('main', 'new_user_phone_auth', 'N');
+        }
+
+        $usePhoneRequire = \COption::GetOptionString('main', 'new_user_phone_required', 'N');
+        if ($usePhoneRequire === 'Y') {
+            \COption::SetOptionString('main', 'new_user_phone_required', 'N');
+        }
+
         $result = $user->Register(
             $fields['LOGIN'],
             $fields['NAME'],
@@ -283,6 +293,14 @@ abstract class Adapter
 
         if ($useEmailRequire === 'Y' && !check_email($fields['EMAIL'])) {
             \COption::SetOptionString('main', 'new_user_email_required', 'Y');
+        }
+
+        if ($useConfirmationPhone === 'Y') {
+            \COption::SetOptionString('main', 'new_user_phone_auth', 'Y');
+        }
+
+        if ($usePhoneRequire === 'Y') {
+            \COption::SetOptionString('main', 'new_user_phone_required', 'Y');
         }
 
         if ($result['TYPE'] == 'ERROR') {
