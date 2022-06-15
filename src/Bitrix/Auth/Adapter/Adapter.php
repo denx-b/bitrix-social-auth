@@ -182,6 +182,11 @@ abstract class Adapter
                 $userFields['LOGIN'] = $login;
                 $userFields['XML_ID'] = $uid;
 
+                $state = $this->parseState();
+                if (strlen($state['page']) > 1) {
+                    static::$redirectTo = $state['page'];
+                }
+
                 $user = new \CUser;
                 if ($user->IsAuthorized()) {
                     if ($row = $dbResUser->fetch()) {
@@ -214,10 +219,6 @@ abstract class Adapter
                         $this->userAddLink($userFields);
                     }
 
-                    $state = $this->parseState();
-                    if (strlen($state['page']) > 1) {
-                        static::$redirectTo = $state['page'];
-                    }
                     \AddEventHandler('main', 'OnEpilog', ['\Dbogdanoff\Bitrix\Auth\Adapter\Adapter', 'redirectToStartPage']);
                 } else {
                     if ($row = $dbResUser->fetch()) {
@@ -228,6 +229,8 @@ abstract class Adapter
                     } else {
                         $this->register($userFields);
                     }
+
+                    \AddEventHandler('main', 'OnEpilog', ['\Dbogdanoff\Bitrix\Auth\Adapter\Adapter', 'redirectToStartPage']);
                 }
             }
         } else {
