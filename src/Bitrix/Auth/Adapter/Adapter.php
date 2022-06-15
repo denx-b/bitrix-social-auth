@@ -219,10 +219,6 @@ abstract class Adapter
                         $this->userAddLink($userFields);
                     }
 
-                    $state = $this->parseState();
-                    if (strlen($state['page']) > 1) {
-                        static::$redirectTo = $state['page'];
-                    }
                     \AddEventHandler('main', 'OnEpilog', ['\Dbogdanoff\Bitrix\Auth\Adapter\Adapter', 'redirectToStartPage']);
                 } else {
                     if ($row = $dbResUser->fetch()) {
